@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>SAI Tracking · ကုန်ပစ္စည်းခြေရာခံစနစ်</title>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<!-- QR Code Scanner (html5-qrcode) -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: linear-gradient(145deg, #eef2f7 0%, #e2e8f0 100%);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  padding: 20px 16px 40px;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+/* Header */
+.app-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.logo {
+  background: linear-gradient(135deg, #0a1a2f, #0f2a3f);
+  display: inline-block;
+  padding: 12px 28px;
+  border-radius: 60px;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
+}
+
+.logo h1 {
+  color: #f59e0b;
+  font-size: 28px;
+  letter-spacing: 2px;
+  font-weight: 800;
+}
+
+.logo p {
+  color: #94a3b8;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+/* Search Card */
+.search-card {
+  background: white;
+  border-radius: 32px;
+  padding: 20px;
+  box-shadow: 0 20px 35px -12px rgba(0,0,0,0.12);
+  margin-bottom: 20px;
+}
+
+.search-input-group {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 16px 20px;
+  border: 2px solid #e2e8f0;
+  border-radius: 50px;
+  font-size: 15px;
+  font-weight: 500;
+  background: #f8fafc;
+  transition: all 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #f59e0b;
+  background: white;
+}
+
+.search-btn {
+  background: #0a1a2f;
+  border: none;
+  border-radius: 50px;
+  padding: 0 24px;
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-btn:active { transform: scale(0.96); }
+
+.scan-toggle-btn {
+  width: 100%;
+  background: #f1f5f9;
+  border: 1.5px dashed #94a3b8;
+  border-radius: 50px;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: 0.2s;
+}
+
+.scan-toggle-btn:active { background: #e2e8f0; }
+
+/* QR Scanner Container */
+.qr-scanner-container {
+  background: #0f172a;
+  border-radius: 28px;
+  padding: 12px;
+  margin-top: 16px;
+  display: none;
+}
+
+#qr-reader {
+  width: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+#qr-reader__dashboard_section_csr {
+  background: #1e293b;
+  color: white;
+}
+
+/* Tracking Result Card */
+.tracking-card {
+  background: white;
+  border-radius: 32px;
+  overflow: hidden;
+  box-shadow: 0 20px 35px -12px rgba(0,0,0,0.12);
+  margin-top: 20px;
+  display: none;
+}
+
+.tracking-header {
+  background: linear-gradient(135deg, #0a1a2f, #0f2a3f);
+  padding: 20px;
+  color: white;
+}
+
+.tracking-number {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  word-break: break-all;
+}
+
+.tracking-badge {
+  display: inline-block;
+  background: rgba(245,158,11,0.2);
+  padding: 4px 12px;
+  border-radius: 40px;
+  font-size: 11px;
+  margin-top: 8px;
+}
+
+.sender-receiver {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.info-chip {
+  background: rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 8px 14px;
+  flex: 1;
+}
+
+.info-chip-label {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.info-chip-value {
+  font-weight: 700;
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+/* Progress Section */
+.progress-section {
+  padding: 20px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.progress-bar-wrapper {
+  background: #e2e8f0;
+  border-radius: 30px;
+  height: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.progress-fill {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  width: 0%;
+  height: 100%;
+  border-radius: 30px;
+  transition: width 0.4s ease;
+}
+
+.progress-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+/* Journey Timeline (City Blocks) */
+.journey-timeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 20px;
+  background: #f8fafc;
+  margin: 0 16px 20px 16px;
+  border-radius: 28px;
+}
+
+.city-block {
+  flex: 1;
+  min-width: 70px;
+  text-align: center;
+  background: white;
+  border-radius: 24px;
+  padding: 12px 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  border: 1px solid #e2e8f0;
+  transition: 0.2s;
+}
+
+.city-block.completed {
+  background: linear-gradient(145deg, #f0fdf4, #dcfce7);
+  border-color: #22c55e;
+}
+
+.city-block.active {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  box-shadow: 0 4px 12px rgba(245,158,11,0.2);
+}
+
+.city-icon {
+  font-size: 28px;
+  margin-bottom: 6px;
+}
+
+.city-name {
+  font-weight: 800;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.city-status {
+  font-size: 10px;
+  margin-top: 5px;
+  font-weight: 600;
+}
+
+.city-status.completed { color: #16a34a; }
+.city-status.active { color: #f59e0b; }
+
+/* Scan Buttons Grid */
+.scan-buttons-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 0 20px 20px 20px;
+}
+
+.step-scan-btn {
+  background: #f1f5f9;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 60px;
+  padding: 14px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #1e293b;
+}
+
+.step-scan-btn.scanned {
+  background: #dcfce7;
+  border-color: #22c55e;
+  color: #166534;
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.step-scan-btn.active-step {
+  border-color: #f59e0b;
+  background: #fef3c7;
+  box-shadow: 0 2px 8px rgba(245,158,11,0.3);
+}
+
+.step-scan-btn:active { transform: scale(0.97); }
+
+/* Timeline Log */
+.timeline-log {
+  background: #f1f5f9;
+  margin: 0 20px 20px 20px;
+  border-radius: 24px;
+  padding: 16px;
+}
+
+.log-title {
+  font-weight: 800;
+  font-size: 13px;
+  color: #475569;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-entry {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.log-entry:last-child { border-bottom: none; }
+
+.log-step-badge {
+  background: #0a1a2f;
+  color: #f59e0b;
+  padding: 4px 12px;
+  border-radius: 40px;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 70px;
+  text-align: center;
+}
+
+.log-detail {
+  flex: 1;
+}
+
+.log-label {
+  font-weight: 700;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.log-time {
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.reset-btn {
+  background: #fff1f0;
+  border: 1px solid #fecaca;
+  border-radius: 60px;
+  padding: 14px;
+  width: calc(100% - 40px);
+  margin: 0 20px 20px 20px;
+  font-weight: 700;
+  color: #dc2626;
+  cursor: pointer;
+  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.reset-btn:active { background: #fee2e2; }
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #64748b;
+}
+
+.not-found {
+  background: #fef2f2;
+  border-radius: 24px;
+  padding: 20px;
+  text-align: center;
+  color: #dc2626;
+}
+
+/* Toast Message */
+.toast-msg {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 60px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 1000;
+  display: none;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .toast-msg { white-space: normal; text-align: center; width: 80%; }
+}
+
+/* Loading */
+.loading-spinner {
+  text-align: center;
+  padding: 40px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #f59e0b;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="app-header">
+    <div class="logo">
+      <h1>SAI TRACK</h1>
+      <p>ကုန်ပစ္စည်း ခြေရာခံစနစ် · Real-time Tracking</p>
+    </div>
+  </div>
+
+  <!-- Search Card -->
+  <div class="search-card">
+    <div class="search-input-group">
+      <input type="text" id="trackInput" class="search-input" placeholder="Tracking Number ထည့်ပါ... ( eg: SAI-MQT2312-845 )" autocomplete="off">
+      <button id="searchBtn" class="search-btn">🔍 ရှာဖွေရန်</button>
+    </div>
+    <button id="scanQrBtn" class="scan-toggle-btn">📷 QR Code ဖြင့် ရှာဖွေမည်</button>
+    <div id="qrScannerContainer" class="qr-scanner-container">
+      <div id="qr-reader" style="width:100%;"></div>
+      <button id="stopScanBtn" style="margin-top:10px;background:#334155;border:none;border-radius:40px;padding:8px;color:white;font-size:12px;">✕ ပိတ်မည်</button>
+    </div>
+  </div>
+
+  <!-- Tracking Result Card -->
+  <div id="trackingResult" class="tracking-card"></div>
+</div>
+
+<div id="toastMsg" class="toast-msg"></div>
+
+<script>
+/* ==================== FIREBASE CONFIG ==================== */
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+let db = null;
+let html5QrCode = null;
+let isScanning = false;
+
+// Initialize Firebase if config is provided
+if (FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY") {
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    console.log("✅ Firebase connected");
+  } catch(e) { console.warn(e); }
+}
+
+/* ==================== TRACKING STEPS DEFINITION ==================== */
+// 8 Core Steps + BKK option (based on office, we'll detect from voucher data)
+const ALL_STEPS = [
+  { id: 1, label: "မြဝတီ IN", city: "မြဝတီ", short: "MWD-IN", icon: "🚪", group: "mwd" },
+  { id: 2, label: "မြဝတီ OUT", city: "မြဝတီ", short: "MWD-OUT", icon: "🚛", group: "mwd" },
+  { id: 3, label: "ဘားအံ IN", city: "ဘားအံ", short: "PAAN-IN", icon: "🏙️", group: "paan" },
+  { id: 4, label: "ဘားအံ OUT", city: "ဘားအံ", short: "PAAN-OUT", icon: "🚛", group: "paan" },
+  { id: 5, label: "ရန်ကုန် IN", city: "ရန်ကုန်", short: "YGN-IN", icon: "🌆", group: "ygn" },
+  { id: 6, label: "ရန်ကုန် OUT", city: "ရန်ကုန်", short: "YGN-OUT", icon: "✈️", group: "ygn" },
+  { id: 7, label: "မန်လေး IN", city: "မန်လေး", short: "MDY-IN", icon: "🏔️", group: "mdy" },
+  { id: 8, label: "မန်လေး OUT", city: "မန်လေး", short: "MDY-OUT", icon: "✅", group: "mdy" }
+];
+const BKK_EXTRA = [
+  { id: 9, label: "BKK IN (ဘန်ကောက်)", city: "ဘန်ကောက်", short: "BKK-IN", icon: "🌏", group: "bkk" },
+  { id: 10, label: "BKK OUT (ဘန်ကောက်)", city: "ဘန်ကောက်", short: "BKK-OUT", icon: "✈️", group: "bkk" }
+];
+
+function getStepsForVoucher(office) {
+  return office === "BKK" ? [...ALL_STEPS, ...BKK_EXTRA] : [...ALL_STEPS];
+}
+
+/* Helper: Show Toast */
+function showToast(msg, isError = false) {
+  const toast = document.getElementById("toastMsg");
+  toast.textContent = msg;
+  toast.style.background = isError ? "#dc2626" : "#1e293b";
+  toast.style.display = "block";
+  setTimeout(() => { toast.style.display = "none"; }, 2500);
+}
+
+/* Load Tracking Data from Firebase */
+async function loadTracking(trackingNo) {
+  if (!db) {
+    showToast("Firebase မချိတ်ဆက်ရသေး။ Config ကိုစစ်ဆေးပါ။", true);
+    return null;
+  }
+  try {
+    const snapshot = await db.ref(`sai_vouchers/${trackingNo}`).once("value");
+    if (!snapshot.exists()) return null;
+    return snapshot.val();
+  } catch (err) {
+    console.error(err);
+    showToast("ဒေတာရယူရာတွင် အမှားရှိသည်", true);
+    return null;
+  }
+}
+
+/* Update Step (Scan) */
+async function updateTrackingStep(trackingNo, stepId, currentData) {
+  if (!db) return false;
+  const steps = getStepsForVoucher(currentData?.office || "MAQ");
+  const currentStepDone = currentData?.track_step || 0;
+  if (stepId > currentStepDone + 1) {
+    showToast(`ကျေးဇူးပြု၍ အဆင့် ${currentStepDone+1} ကို အရင်ဖတ်ပါ။`, true);
+    return false;
+  }
+  const newStepDone = Math.max(currentStepDone, stepId);
+  const log = currentData?.track_log || [];
+  const stepObj = steps.find(s => s.id === stepId);
+  const logEntry = {
+    step: stepId,
+    label: stepObj?.label || `Step ${stepId}`,
+    time: new Date().toLocaleString("my-MM", { hour12: false })
+  };
+  const existingIdx = log.findIndex(l => l.step === stepId);
+  if (existingIdx >= 0) log[existingIdx] = logEntry;
+  else log.push(logEntry);
+  log.sort((a,b) => a.step - b.step);
+  
+  await db.ref(`sai_vouchers/${trackingNo}`).update({
+    track_step: newStepDone,
+    track_log: log,
+    last_update: new Date().toISOString()
+  });
+  showToast(`✅ ${stepObj?.label || "အဆင့်"} ပြီးဆုံးပါပြီ။`);
+  return true;
+}
+
+/* Reset Tracking */
+async function resetTracking(trackingNo) {
+  if (!db) return;
+  if (!confirm("Tracking အဆင့်အားလုံးကို ပြန်စမည်။ ဆက်လုပ်မလား?")) return;
+  await db.ref(`sai_vouchers/${trackingNo}`).update({ track_step: 0, track_log: [] });
+  showToast("Tracking အားလုံး ပြန်စပြီးပါပြီ။");
+  renderTracking(trackingNo);
+}
+
+/* Render UI */
+async function renderTracking(trackingNo) {
+  const resultDiv = document.getElementById("trackingResult");
+  resultDiv.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><div style="color:#475569;">ဒေတာဖတ်နေသည်...</div></div>`;
+  resultDiv.style.display = "block";
+  
+  const data = await loadTracking(trackingNo);
+  if (!data) {
+    resultDiv.innerHTML = `<div class="not-found">🔍 Tracking Number "${trackingNo}" မတွေ့ပါ။<br><span style="font-size:12px;">စစ်ဆေးပြီး ထပ်ကြိုးစားပါ။</span></div>`;
+    return;
+  }
+  
+  const steps = getStepsForVoucher(data.office || "MAQ");
+  const stepDone = data.track_step || 0;
+  const log = data.track_log || [];
+  const percent = Math.round((stepDone / steps.length) * 100);
+  
+  // Group cities for visual blocks
+  const cityMap = new Map();
+  steps.forEach(s => {
+    if (!cityMap.has(s.city)) cityMap.set(s.city, []);
+    cityMap.get(s.city).push(s);
+  });
+  
+  let cityBlocksHtml = `<div class="journey-timeline">`;
+  for (let [city, citySteps] of cityMap.entries()) {
+    const allCompleted = citySteps.every(st => st.id <= stepDone);
+    const isActive = citySteps.some(st => st.id === stepDone + 1);
+    let statusClass = "";
+    let statusText = "";
+    if (allCompleted) { statusClass = "completed"; statusText = "✓ ပြီးပြီ"; }
+    else if (isActive) { statusClass = "active"; statusText = "📍 လုပ်ဆောင်ရန်"; }
+    else { statusText = "⏳ စောင့်ဆိုင်း"; }
+    cityBlocksHtml += `
+      <div class="city-block ${statusClass}">
+        <div class="city-icon">${citySteps[0].icon}</div>
+        <div class="city-name">${city}</div>
+        <div class="city-status ${statusClass}">${statusText}</div>
+      </div>
+    `;
+  }
+  cityBlocksHtml += `</div>`;
+  
+  // Scan buttons grid
+  let scanHtml = `<div class="scan-buttons-grid">`;
+  steps.forEach(step => {
+    const isScanned = step.id <= stepDone;
+    const isActive = step.id === stepDone + 1;
+    let btnClass = "step-scan-btn";
+    if (isScanned) btnClass += " scanned";
+    if (isActive) btnClass += " active-step";
+    scanHtml += `
+      <button class="${btnClass}" data-step="${step.id}" onclick="handleStepClick('${trackingNo}', ${step.id})">
+        ${step.icon} ${step.label} ${isScanned ? "✓" : ""}
+      </button>
+    `;
+  });
+  scanHtml += `</div>`;
+  
+  // Timeline log
+  let logHtml = `<div class="timeline-log"><div class="log-title">📋 မှတ်တမ်း (Timeline)</div>`;
+  if (log.length === 0) {
+    logHtml += `<div style="padding:12px;text-align:center;color:#94a3b8;">စကင်ဖတ်ခြင်းမရှိသေး</div>`;
+  } else {
+    log.slice().sort((a,b)=>a.step-b.step).forEach(entry => {
+      const st = steps.find(s => s.id === entry.step);
+      logHtml += `
+        <div class="log-entry">
+          <div class="log-step-badge">အဆင့် ${entry.step}</div>
+          <div class="log-detail">
+            <div class="log-label">${st?.label || entry.label}</div>
+            <div class="log-time">${entry.time || ""}</div>
+          </div>
+        </div>
+      `;
+    });
+  }
+  logHtml += `</div>`;
+  
+  const destText = data.dest || "—";
+  const directionArrow = data.direction === "TH" ? "🇹🇭 → 🇲🇲" : "🇲🇲 → 🇹🇭";
+  const officeBadge = data.office === "BKK" ? "🏙️ BKK Office" : "📍 MAQ Office";
+  
+  const fullHtml = `
+    <div class="tracking-header">
+      <div class="tracking-number">📦 ${data.trackNo}</div>
+      <div class="tracking-badge">${officeBadge} · ${directionArrow}</div>
+      <div class="sender-receiver">
+        <div class="info-chip"><div class="info-chip-label">ပေးပို့သူ</div><div class="info-chip-value">${escapeHtml(data.sName || "-")}</div><div style="font-size:10px;">${data.sPhone || ""}</div></div>
+        <div class="info-chip"><div class="info-chip-label">လက်ခံသူ</div><div class="info-chip-value">${escapeHtml(data.rName || "-")}</div><div style="font-size:10px;">${data.rPhone || ""}</div></div>
+      </div>
+      <div class="info-chip" style="margin-top:12px;background:rgba(255,255,255,0.08);"><div class="info-chip-label">ဦးတည်ရာ / ကုန်ပစ္စည်း</div><div class="info-chip-value">${escapeHtml(destText)} · ${escapeHtml(data.packing || "")} (x${data.qty || 1})</div></div>
+    </div>
+    <div class="progress-section">
+      <div class="progress-bar-wrapper"><div class="progress-fill" style="width:${percent}%;"></div></div>
+      <div class="progress-stats"><span>ပြီးစီးမှု</span><span>${stepDone}/${steps.length} အဆင့် · ${percent}%</span></div>
+    </div>
+    ${cityBlocksHtml}
+    <div style="padding:0 20px;"><hr style="border-color:#eef2f7;"></div>
+    ${scanHtml}
+    ${logHtml}
+    <button class="reset-btn" onclick="resetTrackingWrapper('${trackingNo}')">⟳ Tracking အစပြန်သတ်မှတ် (Reset)</button>
+    <div style="padding:16px 20px 24px;font-size:11px;color:#94a3b8;text-align:center;">
+      📍 ကုန်ပစ္စည်းရောက်ရှိသည့်နေရာတွင် QR ဖတ်၍ အဆင့်မြှင့်ပါ။
+    </div>
+  `;
+  
+  resultDiv.innerHTML = fullHtml;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+/* Handle Step Click (Update from UI) */
+window.handleStepClick = async function(trackingNo, stepId) {
+  if (!db) { showToast("Firebase not ready", true); return; }
+  const data = await loadTracking(trackingNo);
+  if (!data) { showToast("ဒေတာမရှိ", true); return; }
+  const success = await updateTrackingStep(trackingNo, stepId, data);
+  if (success) renderTracking(trackingNo);
+};
+
+window.resetTrackingWrapper = async function(trackingNo) {
+  await resetTracking(trackingNo);
+  renderTracking(trackingNo);
+};
+
+/* Search Function */
+async function searchTracking() {
+  const input = document.getElementById("trackInput").value.trim();
+  if (!input) { showToast("Tracking Number ထည့်ပါ", true); return; }
+  await renderTracking(input);
+}
+
+/* QR Code Scanner */
+async function startQrScanner() {
+  const container = document.getElementById("qrScannerContainer");
+  if (html5QrCode && isScanning) {
+    stopQrScanner();
+    return;
+  }
+  container.style.display = "block";
+  if (!html5QrCode) {
+    html5QrCode = new Html5Qrcode("qr-reader");
+  }
+  try {
+    isScanning = true;
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => {
+        // QR content can be "TRACK|trackingNo" or direct tracking number
+        let trackingNo = decodedText;
+        if (decodedText.includes("|")) {
+          const parts = decodedText.split("|");
+          if (parts[0] === "TRACK" && parts[1]) trackingNo = parts[1];
+          else trackingNo = parts[0];
+        }
+        document.getElementById("trackInput").value = trackingNo;
+        stopQrScanner();
+        renderTracking(trackingNo);
+        showToast(`Tracking ရှာတွေ့ပါပြီ: ${trackingNo}`);
+      },
+      (error) => { console.warn(error); }
+    );
+  } catch (err) {
+    showToast("Camera access failed", true);
+    isScanning = false;
+  }
+}
+
+function stopQrScanner() {
+  if (html5QrCode && isScanning) {
+    html5QrCode.stop().then(() => {
+      isScanning = false;
+      document.getElementById("qrScannerContainer").style.display = "none";
+    }).catch(e => console.warn);
+  } else {
+    document.getElementById("qrScannerContainer").style.display = "none";
+  }
+}
+
+/* Event Listeners */
+document.getElementById("searchBtn").addEventListener("click", searchTracking);
+document.getElementById("scanQrBtn").addEventListener("click", startQrScanner);
+document.getElementById("stopScanBtn").addEventListener("click", stopQrScanner);
+document.getElementById("trackInput").addEventListener("keypress", (e) => { if(e.key === "Enter") searchTracking(); });
+
+/* Demo: if URL param ?track=xxx */
+const urlParams = new URLSearchParams(window.location.search);
+const trackParam = urlParams.get("track");
+if (trackParam) {
+  document.getElementById("trackInput").value = trackParam;
+  renderTracking(trackParam);
+}
+</script>
+</body>
+</html>
